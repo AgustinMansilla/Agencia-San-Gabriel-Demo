@@ -30,7 +30,7 @@ Agencia San Gabriel centraliza el trabajo diario de una agencia de diarios en un
 
 ## Interfaz
 
-[**Abrir la interfaz del sistema**](presentacion/index.html)
+[**Abrir la interfaz del sistema**](index.html)
 
 La página reproduce la estructura HTML y los estilos CSS de la aplicación de escritorio, incluidos sus recursos visuales y los accesos a los módulos principales.
 
@@ -38,8 +38,7 @@ La página reproduce la estructura HTML y los estilos CSS de la aplicación de e
 
 ```text
 Agencia-San-Gabriel-Demo/
-├── presentacion/
-│   └── index.html
+├── index.html
 └── README.md
 ```
 
