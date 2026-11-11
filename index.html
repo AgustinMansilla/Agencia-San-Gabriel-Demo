@@ -845,4 +845,106 @@ for(const [id,view] of Object.entries({
   document.getElementById(id)?.addEventListener("click",()=>openSection(view));
 }
 openSection("homeView");
-</script></body></html>
+</script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const current = new Date();
+  const periods = [
+    {year:"year",month:"month",prev:"prev",next:"next",title:"monthTitle"},
+    {year:"courierYear",month:"courierMonth",prev:"courierPrev",next:"courierNext",title:"courierMonthTitle"},
+    {year:"adYear",month:"adMonth",prev:"adPrev",next:"adNext",title:"adMonthTitle"},
+    {year:"documentYear",month:"documentMonth",prev:"documentPrev",next:"documentNext",title:"documentMonthTitle"}
+  ];
+  for(const period of periods){
+    const yy=$(period.year),mm=$(period.month),title=$(period.title);
+    if(!yy||!mm)continue;
+    const initialYear=current.getFullYear(),initialMonth=current.getMonth();
+    yy.replaceChildren(...Array.from({length:7},(_,i)=>new Option(String(initialYear-3+i),String(initialYear-3+i))));
+    mm.replaceChildren(...months.map((n,i)=>new Option(n,String(i))));
+    yy.value=String(initialYear);mm.value=String(initialMonth);
+    const draw=()=>{if(title)title.textContent=months[Number(mm.value)]+" "+yy.value;};
+    const change=delta=>{let value=Number(yy.value)*12+Number(mm.value)+delta;let y=Math.floor(value/12),m=((value%12)+12)%12;if(![...yy.options].some(o=>Number(o.value)===y))return;yy.value=String(y);mm.value=String(m);draw();};
+    yy.addEventListener("change",draw);mm.addEventListener("change",draw);
+    $(period.prev)?.addEventListener("click",()=>change(-1));
+    $(period.next)?.addEventListener("click",()=>change(1));
+    draw();
+  }
+  const distributionTabs=[
+    ["planTab","planView"],["vendorTab","vendorView"],["returns","returnsView"],["norteTab","norteView"]
+  ];
+  for(const [id,panel] of distributionTabs){
+    $(id)?.addEventListener("click",()=>{
+      for(const [tabId,viewId] of distributionTabs){
+        const active=tabId===id;
+        $(tabId)?.classList.toggle("active",active);
+        $(tabId)?.setAttribute("aria-selected",String(active));
+        if($(viewId))$(viewId).hidden=!active;
+      }
+    });
+  }
+  const advertisingLabels={diario:"Publicidad de diario",radio:"Publicidad radial",locucion:"Locución",all:"Todos los trabajos"};
+  document.querySelectorAll("[data-ad-kind]").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll("[data-ad-kind]").forEach(t=>{t.classList.toggle("active",t===b);t.setAttribute("aria-selected",String(t===b));});
+    if($("adHeading"))$("adHeading").textContent=advertisingLabels[b.dataset.adKind]??"Publicidad";
+  }));
+  const modal=$("modal"),modalForm=$("modalForm"),modalBody=$("modalBody"),modalTitle=$("modalTitle"),modalSubmit=$("submitModal");
+  let onSave=null;
+  function openModal(title,fields,save=null){
+    if(!modal||!modalBody)return;
+    modalTitle.textContent=title;modalBody.replaceChildren();onSave=save;
+    if(fields.length){
+      for(const [label,type,key] of fields){
+        const line=document.createElement("label");line.style.cssText="display:block;margin:13px 0;font-weight:650";
+        const span=document.createElement("span");span.textContent=label;
+        const input=document.createElement("input");input.className="input";input.name=key;input.type=type;input.required=true;input.style.cssText="display:block;width:100%;padding:10px;margin-top:7px";
+        line.append(span,input);modalBody.append(line);
+      }
+    }
+    modalSubmit.hidden=!save;modal.showModal();
+  }
+  $("closeModal")?.addEventListener("click",()=>modal.close());
+  $("cancelModal")?.addEventListener("click",()=>modal.close());
+  modalForm?.addEventListener("submit",event=>{
+    event.preventDefault();
+    if(onSave){const values=Object.fromEntries(new FormData(modalForm));onSave(values);}
+    modal.close();
+  });
+  $("topHelp")?.addEventListener("click",()=>{
+    const active=["distributionView","courierView","documentView","advertisingView"].find(id=>$(id)&&!$(id).hidden);
+    const descriptions={
+      distributionView:"Consultá los clientes, canillitas, devoluciones y el Pago a Norte desde las pestañas de Distribución.",
+      courierView:"Revisá el pago del repartidor y los movimientos de cada mes.",
+      documentView:"Consultá el documento mensual y sus observaciones.",
+      advertisingView:"Organizá los trabajos de publicidad por mes y tipo.",
+    };
+    openModal("Cómo usar",[["Descripción","text","note"]],null);
+    modalBody.replaceChildren();
+    const p=document.createElement("p");p.textContent=descriptions[active]||"Elegí un módulo desde la pantalla de inicio.";modalBody.append(p);
+  });
+  $("adNew")?.addEventListener("click",()=>openModal("Agregar trabajo",[["Trabajo","text","description"],["Importe","number","amount"]],values=>{
+    const table=$("adSheet");if(!table)return;
+    let body=table.tBodies[0];if(!body)body=table.createTBody();
+    const row=body.insertRow();for(const value of [values.description,values.amount]){const td=row.insertCell();td.textContent=value;}
+    if($("adEmpty"))$("adEmpty").hidden=true;
+  }));
+  $("courierAddMovement")?.addEventListener("click",()=>openModal("Agregar movimiento",[["Concepto","text","description"],["Importe","number","amount"]],values=>{
+    const row=$("courierRows")?.insertRow();if(!row)return;
+    for(const value of [new Date().toLocaleDateString("es-AR"),values.description,"",values.amount])row.insertCell().textContent=value;
+  }));
+  $("newClient")?.addEventListener("click",()=>openModal("Agregar persona",[["Nombre","text","name"]],values=>{
+    const row=$("tableBody")?.insertRow();if(row){row.insertCell().textContent=values.name;}
+  }));
+  $("documentSave")?.addEventListener("click",()=>{
+    const textarea=$("documentView")?.querySelector("textarea");
+    if(textarea){try{sessionStorage.setItem("agency_document_draft",textarea.value)}catch(_){}}
+    const b=$("documentSave");b.textContent="✓ Guardado";setTimeout(()=>b.textContent="💾 Guardar",1200);
+  });
+  $("generateSheet")?.addEventListener("click",()=>window.print());
+  $("sizeUp")?.addEventListener("click",()=>{if($("tableWrap"))$("tableWrap").style.fontSize="110%";});
+  $("sizeDown")?.addEventListener("click",()=>{if($("tableWrap"))$("tableWrap").style.fontSize="90%";});
+})();
+</script>
+</body></html>
